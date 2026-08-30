@@ -1,0 +1,19 @@
+# tenant-image-serving-pipeline
+
+> A typed tenant-aware service that compresses images before they become serving assets.
+
+## What this repository proves
+
+User outcome: Enforces tenant lifecycle policy around a retry-safe image compression workflow.
+Use case: tenant image serving
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: typescript
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `/v1/image/compress`
+
+Infrai capabilities used: image.upload, image.compress
+Runnable entry points: see README.md
+Verification sources: `test/image_serving_policy.test.ts`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt

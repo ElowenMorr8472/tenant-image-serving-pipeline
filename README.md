@@ -1,12 +1,12 @@
 # Serve compressed images only for active SaaS tenants
 
-As a solo builder I want minimal moving parts. You onboard a tenant, take an image, push it, compress, and get back a `ready_to_serve` asset. Infrai puts both image operations behind one API and a single `INFRAI_API_KEY`; we keep the tenant policy logic on our end.
+The working path is short: onboard a tenant, accept an image, upload it, compress it, then return a `ready_to_serve` asset. Infrai keeps both image calls behind one API and a single `INFRAI_API_KEY`; this service keeps account policy on our side.
 
-I built the boundary I'd use in my own small SaaS. Admins toggle accounts active, suspended, or closed. No image job runs unless the account is live. The client is plain HTTP, checks the `{ok, data, error, metadata}` envelope to decide status, and respects 429 backoff. Each write sends a stable idempotency key so retries don't double-charge.
+I built the boundary I would want in a small SaaS. Admins can activate, suspend, or close an account. Image work starts only while that account is active. The client uses plain HTTP, reads the `{ok, data, error, metadata}` envelope before judging the status, and backs off on HTTP 429. Every write carries a stable idempotency key.
 
 ## Run the decision first
 
-Run the gate test first. It onboards `acme`, suspends it, then sends `hero.png`. The call should fail before any image API fires. The test also confirms an active account gets through to `ready_to_serve`.
+The focused test onboards `acme`, suspends it, and submits `hero.png`. Expected result: the request is rejected before either image call runs. It also checks that an active account reaches `ready_to_serve`.
 
 ```sh
 npm install
@@ -16,14 +16,14 @@ npm run typecheck
 
 ## Try one real image
 
-Set your API credential, then run the demo against a local file:
+Set the credential, then point the demo at a local image:
 
 ```sh
 export INFRAI_API_KEY='your-key'
 npm run demo -- ./hero.png
 ```
 
-A good response looks like:
+The successful result has this shape:
 
 ```json
 {
@@ -33,19 +33,19 @@ A good response looks like:
 }
 ```
 
-If you're calling over HTTP, use `npm run dev`. `POST /admin/tenants` takes `tenantId` and `name`; `PATCH /admin/tenants/:id/status` takes `active`, `suspended`, or `closed`. `POST /tenants/:id/serving-images` takes `filename`, `contentBase64`, and `requestId`. All request and response bodies are strict zod schemas, so types stay enforced.
+For an HTTP service, run `npm run dev`. `POST /admin/tenants` accepts `tenantId` and `name`; `PATCH /admin/tenants/:id/status` accepts `active`, `suspended`, or `closed`. `POST /tenants/:id/serving-images` accepts `filename`, `contentBase64`, and `requestId`. All three bodies are strict zod schemas.
 
 ## The decision I am keeping
 
-I keep the account gate before upload, not deferred to a worker. A suspended tenant must not spawn a serving asset or burn remote compute. That rule is what the test enforces.
+The account check belongs before upload, not in a queue after it. A suspended customer should create no new serving asset and no remote work. That is the business rule the test protects.
 
-Retry identity is the tricky part. A fresh random key each try breaks idempotency. The caller passes `requestId`; the client hashes stable keys for upload and compress but keeps the two writes separate.
+The one real gotcha is retry identity. A random key per attempt defeats idempotency. Here the caller supplies `requestId`; the client derives stable keys for upload and compression while still giving those two writes distinct identities.
 
-The ledger is in-memory on purpose. It shows onboarding and admin transitions without faking a billing backend. Swap in your own DB later; the decision flow and client edge stay.
+This is deliberately an in-memory account ledger. It models onboarding and admin state transitions without pretending to be a billing system. Replace the ledger with your database; keep the workflow decision and client boundary.
 
 ## Wiring it up for real: Tenant Image Serving Pipeline
 
-The quick start above gets you running. For production you need the items below for Tenant Image Serving Pipeline.
+Quick start is above. For a real deployment you'll also need: The details below apply to Tenant Image Serving Pipeline.
 
 **Account & key**
 
